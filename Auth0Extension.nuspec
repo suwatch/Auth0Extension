@@ -1,0 +1,23 @@
+<?xml version="1.0"?>
+<package >
+  <metadata>
+    <id>Auth0Extension</id>
+    <title>Auth0 Extension</title>
+    <version>1.0.9</version>
+    <authors>Suwat Bodin</authors>
+    <licenseUrl>http://opensource.org/licenses/Apache-2.0</licenseUrl>
+    <projectUrl>https://github.com/suwatch/Auth0Extension</projectUrl>
+    <requireLicenseAcceptance>false</requireLicenseAcceptance>
+    <description>Enable site with Auth0 authentication</description>
+    <iconUrl>http://secure.gravatar.com/avatar/805765c256ff8617fcad483b5476faf2</iconUrl>
+    <tags>auth0 siteextension</tags>
+  </metadata>
+  <files>
+    <file src="applicationHost.xdt" target="content" />
+    <file src="install.cmd" target="content" />
+    <file src="uninstall.cmd" target="content" />
+    <file src="auth0info.cshtml" target="content" />
+    <file src="Auth0Extension.nuspec" target="content" />
+    <file src="bin\Debug\Auth0Module.dll" target="content" />
+  </files>
+</package>

@@ -1,0 +1,17 @@
+<?xml version="1.0"?>
+<configuration xmlns:xdt="http://schemas.microsoft.com/XML-Document-Transform">
+  <location path="%XDT_SITENAME%" xdt:Locator="Match(path)">
+    <system.webServer xdt:Transform="InsertIfMissing">
+      <modules xdt:Transform="InsertIfMissing">
+        <add name="Auth0Module" type="Auth0Module.Auth0Module" preCondition="managedHandler" xdt:Locator="Match(name)" xdt:Transform="InsertIfMissing" />
+      </modules>
+      <defaultDocument>
+        <files>
+          <add value="hostingstart.html" xdt:Locator="Match(value)" xdt:Transform="Remove" />
+          <add value="auth0info.cshtml" xdt:Transform="Insert" />
+          <add value="hostingstart.html" xdt:Transform="Insert" />
+        </files>
+      </defaultDocument>
+    </system.webServer>
+  </location>
+</configuration>

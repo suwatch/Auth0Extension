@@ -1,0 +1,95 @@
+@using System
+@using System.Configuration
+@using System.Collections
+@using System.Security.Claims
+@using System.Configuration
+
+
+@{
+    var context = new HttpContextWrapper(HttpContext.Current);
+    var auth0Enabled = !String.IsNullOrEmpty(ConfigurationManager.AppSettings["Auth0ClientId"]) 
+        && !String.IsNullOrEmpty(ConfigurationManager.AppSettings["Auth0ClientSecret"]) 
+        && !String.IsNullOrEmpty(ConfigurationManager.AppSettings["Auth0Domain"]);
+    var hostName = context.Request.Url.Host;        
+}
+
+<style>
+body {
+    font-family: verdana,helvetica,arial,sans-serif;
+    font-size: 100%;
+}
+table {
+    border-collapse: collapse;
+    border-spacing: 0px;
+}
+th, td {
+    display: table-cell;
+    padding: 5px;
+    text-align: left;
+}
+th {
+    color: #ffffff;
+    background-color: #555555;
+    border: 1px solid #d4d4d4;
+    font-weight: bold;
+}
+td {
+    border: 1px solid #d4d4d4;
+}
+table tr:nth-child(even) {
+    background-color: #eee;
+}
+table tr:nth-child(odd) {
+   background-color:#fff;
+}
+</style>
+
+@if (!auth0Enabled)
+{
+    <h4>Auth0 settings are not configured for your site!</h4>
+    <ol>
+      <li>Goto <a href="https://manage.windowsazure.com/" target="blank">Azure Portal</a>.</li>
+      <li>Navigate to your site <strong>CONFIGURE</strong> tab.</li>
+      <li>Add the following keys to <strong>AppSettings</strong> section.    Their values are available at <a href="https://app.auth0.com/#/applications" target="blank">Auth0 application</a> settings tab.
+        <ul>
+          <li>Auth0ClientId</li>
+          <li>Auth0ClientSecret</li>
+          <li>Auth0Domain</li>
+        </ul>    
+      </li>
+    </ol>
+    <p/>    
+    <h4>Add Allowed Callback URLs to Auth0 application!</h4>
+    <ol>
+      <li>Go to <a href="https://app.auth0.com/#/applications" target="blank">Auth0 application</a> settings tab.</li>
+      <li>Add the below URLs as comma-separated <strong>Allowed Callback URLs</strong>.
+        <ul>
+          <li>@String.Format("http://{0}/login/callback", hostName)</li>
+          <li>@String.Format("http://{0}/logout/complete", hostName)</li>
+        </ul>    
+      </li>
+    </ol>    
+}
+else if (context.User != null && context.User.Identity != null && context.User.Identity.IsAuthenticated)
+{
+    <h4>User Information (<a href="/logout">logout</a>)</h4>
+    <table id="userInfo">
+        <tr>
+            <th>Claim</th>
+            <th>Type</th>
+            <th>Value</th>		
+        </tr>
+        @foreach (var claim in ((ClaimsIdentity)context.User.Identity).Claims)
+        {
+            <tr>
+                <td>@claim.Type</td>
+                <td>@claim.ValueType</td>
+                <td>@claim.Value</td>
+            </tr>
+        }
+    </table>
+}
+else
+{
+    <h4>User is not signed in!</h4>
+}

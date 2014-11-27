@@ -1,0 +1,11 @@
+[Oo]bj/
+[Bb]in/
+*.user
+*.suo
+*.nupkg
+*.csproj.user
+packages/*
+App_Data/
+msbuild.log
+web.config
+web.Debug.config
