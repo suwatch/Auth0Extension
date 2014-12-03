@@ -3,7 +3,7 @@
   <location path="%XDT_SITENAME%" xdt:Locator="Match(path)">
     <system.webServer xdt:Transform="InsertIfMissing">
       <modules xdt:Transform="InsertIfMissing">
-        <add name="Auth0Module" type="Auth0Module.Auth0Module" preCondition="managedHandler" xdt:Locator="Match(name)" xdt:Transform="InsertIfMissing" />
+        <add name="Auth0Module" type="Auth0Module.Auth0Module" xdt:Locator="Match(name)" xdt:Transform="InsertIfMissing" />
       </modules>
       <defaultDocument>
         <files>

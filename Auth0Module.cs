@@ -1,6 +1,8 @@
 ﻿using System;
 using System.Configuration;
 using System.Globalization;
+using System.IdentityModel;
+using System.IdentityModel.Services;
 using System.IO;
 using System.Net;
 using System.Text;
@@ -21,6 +23,13 @@ namespace Auth0Module
         public const string LogoutPath = "/logout";
         public const string LogoutCompletePath = "/logout/complete";
 
+        public static readonly CookieTransform[] DefaultCookieTransforms = new CookieTransform[]
+        {
+	        new DeflateCookieTransform(),
+	        new MachineKeyTransform()
+        };
+
+
         public static string Auth0ClientId
         {
             get { return ConfigurationManager.AppSettings["Auth0ClientId"]; }
@@ -36,6 +45,11 @@ namespace Auth0Module
             get { return ConfigurationManager.AppSettings["Auth0Domain"]; }
         }
 
+        public bool Enabled
+        {
+            get { return !String.IsNullOrEmpty(Auth0ClientId) && !String.IsNullOrEmpty(Auth0ClientSecret) && !String.IsNullOrEmpty(Auth0Domain); }
+        }
+
         public void Init(HttpApplication context)
         {
             // disable the feature if configuration is not defined
@@ -43,11 +57,6 @@ namespace Auth0Module
             {
                 context.AuthenticateRequest += AuthenticateRequest;
             }
-        }
-
-        public bool Enabled
-        {
-            get { return !String.IsNullOrEmpty(Auth0ClientId) && !String.IsNullOrEmpty(Auth0ClientSecret) && !String.IsNullOrEmpty(Auth0Domain); }
         }
 
         public void Dispose()
@@ -58,11 +67,14 @@ namespace Auth0Module
         {
             var application = (HttpApplication)sender;
             var request = application.Request;
+            var requestUrl = new Uri(request.Url, request.RawUrl);
             var response = application.Response;
 
-            if (request.Url.AbsolutePath.StartsWith(LogoutPath, StringComparison.OrdinalIgnoreCase))
+            Auth0Trace.WriteLine("request = {0}", requestUrl);
+
+            if (requestUrl.AbsolutePath.StartsWith(LogoutPath, StringComparison.OrdinalIgnoreCase))
             {
-                if (request.Url.AbsolutePath.Equals(LogoutPath, StringComparison.OrdinalIgnoreCase))
+                if (requestUrl.AbsolutePath.Equals(LogoutPath, StringComparison.OrdinalIgnoreCase))
                 {
                     RemoveSessionCookie(application);
 
@@ -86,6 +98,8 @@ namespace Auth0Module
 
             if (!String.IsNullOrEmpty(redirectUri))
             {
+                Auth0Trace.WriteLine("redirectUri = {0}", redirectUri);
+
                 response.Redirect(redirectUri, endResponse: true);
                 return;
             }
@@ -98,12 +112,13 @@ namespace Auth0Module
         public static string GetLoginUrl(HttpApplication application)
         {
             var request = application.Context.Request;
+            var requestUrl = new Uri(request.Url, request.RawUrl);
             var loginAddress = String.Format("https://{0}/authorize", Auth0Domain);
             var client_id = Auth0ClientId;
             var scope = "openid profile";
             var response_type = "code";
             var redirect_uri = GetRedirectUrl(application);
-            var state = request.Url.PathAndQuery;
+            var state = requestUrl.AbsolutePath; // no query
 
             StringBuilder strb = new StringBuilder();
             strb.Append(loginAddress);
@@ -130,32 +145,50 @@ namespace Auth0Module
             return strb.ToString();
         }
 
-        // NOTE: secure the cookie
-        public static byte[] EncryptAndSignCookie(Auth0Token token)
+        public static byte[] EncodeCookie(Auth0Token token)
         {
-            return token.ToBytes();
+            var bytes = token.ToBytes();
+            for (int i = 0; i < DefaultCookieTransforms.Length; ++i)
+            {
+                bytes = DefaultCookieTransforms[i].Encode(bytes);
+            }
+            return bytes;
         }
 
-        // NOTE: secure the cookie
-        public static Auth0Token DecryptAndVerifySignatureCookie(byte[] bytes)
+        public static Auth0Token DecodeCookie(byte[] bytes)
         {
-            return Auth0Token.FromBytes(bytes);
-        }
+            try
+            {
+                for (int i = DefaultCookieTransforms.Length - 1; i >= 0; --i)
+                {
+                    bytes = DefaultCookieTransforms[i].Decode(bytes);
+                }
+                return Auth0Token.FromBytes(bytes);
+            }
+            catch (Exception ex)
+            {
+                Auth0Trace.WriteLine("DecodeCookie failed with {0}", ex);
 
+                // bad cookie
+                return null;
+            }
+        }
         public static Auth0Token AuthenticateUser(HttpApplication application, out string redirectUri)
         {
             redirectUri = null;
 
             var request = application.Context.Request;
-            if (!request.Url.AbsolutePath.Equals(LoginCallbackPath, StringComparison.OrdinalIgnoreCase))
+            var requestUrl = new Uri(request.Url, request.RawUrl);
+            if (!requestUrl.AbsolutePath.Equals(LoginCallbackPath, StringComparison.OrdinalIgnoreCase))
             {
                 return ReadSessionCookie(application);
             }
 
-            var code = request.QueryString["code"];
+            var query = HttpUtility.ParseQueryString(requestUrl.Query);
+            var code = query["code"];
             if (String.IsNullOrEmpty(code))
             {
-                return null;
+                return ReadSessionCookie(application);
             }
 
             var tokenRequestUri = String.Format("https://{0}/oauth/token", Auth0Domain);
@@ -187,13 +220,15 @@ namespace Auth0Module
 
                     WriteSessionCookie(application, token);
 
-                    redirectUri = request.QueryString["state"];
+                    redirectUri = query["state"];
 
                     return token;
                 }
             }
             catch (WebException ex)
             {
+                Auth0Trace.WriteLine("POST {0} failed with {1}", tokenRequestUri, ex);
+
                 throw HandleOAuthError(ex, tokenRequestUri);
             }
         }
@@ -230,8 +265,8 @@ namespace Auth0Module
             }
 
             var bytes = Convert.FromBase64String(strb.ToString());
-            var token = DecryptAndVerifySignatureCookie(bytes);
-            if (!token.IsValid())
+            var token = DecodeCookie(bytes);
+            if (token == null || !token.IsValid())
             {
                 RemoveSessionCookie(application);
 
@@ -246,7 +281,7 @@ namespace Auth0Module
             var request = application.Context.Request;
             var response = application.Context.Response;
 
-            var bytes = EncryptAndSignCookie(token);
+            var bytes = EncodeCookie(token);
             var cookie = Convert.ToBase64String(bytes);
             var chunkCount = cookie.Length / CookieChunkSize + (cookie.Length % CookieChunkSize == 0 ? 0 : 1);
             for (int i = 0; i < chunkCount; ++i)

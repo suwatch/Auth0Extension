@@ -33,6 +33,8 @@
     <Reference Include="System" />
     <Reference Include="System.Configuration" />
     <Reference Include="System.Core" />
+    <Reference Include="System.IdentityModel" />
+    <Reference Include="System.identitymodel.services" />
     <Reference Include="System.Web" />
     <Reference Include="System.Web.Extensions" />
     <Reference Include="System.Xml.Linq" />
@@ -44,6 +46,7 @@
   <ItemGroup>
     <Compile Include="Auth0Module.cs" />
     <Compile Include="Auth0Token.cs" />
+    <Compile Include="Auth0Trace.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup>

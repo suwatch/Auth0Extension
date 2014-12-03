@@ -43,6 +43,8 @@ namespace Auth0Module
                 using (var reader = new StreamReader(stream))
                 {
                     claims = serializer.Deserialize<Dictionary<string, object>>(reader.ReadToEnd());
+
+                    Auth0Trace.WriteLine("principal = {0} claims", claims.Count);
                 }
             }
 
